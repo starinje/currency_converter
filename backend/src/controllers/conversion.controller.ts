@@ -11,11 +11,11 @@ const defaultRepository = AppDataSource.getRepository(Conversion);
 
 export const createConversionHandler = (
   repository: Repository<Conversion> = defaultRepository,
-  service: CoinbaseService = defaultCoinbaseService
+  coinbaseService: CoinbaseService = defaultCoinbaseService
 ) => {
   return async (req: Request, res: Response) => {
     try {
-      const { from, to, amount } = req.query;
+      const { from , to, amount } = req.query;
       const userId = (req as AuthenticatedRequest).userId;
 
       if (!from || !to || !amount) {
@@ -24,15 +24,15 @@ export const createConversionHandler = (
 
       // Validate currencies
       const [isFromValid, isToValid] = await Promise.all([
-        service.validateCurrency(from as string),
-        service.validateCurrency(to as string)
+        coinbaseService.validateCurrency(from as string),
+        coinbaseService.validateCurrency(to as string)
       ]);
 
       if (!isFromValid || !isToValid) {
         return res.status(400).json({ error: 'Invalid currency' });
       }
 
-      const rate = await service.getExchangeRate(from as string, to as string);
+      const rate = await coinbaseService.getExchangeRate(from as string, to as string);
       const result = parseFloat(amount as string) * rate;
 
       // Save conversion to database
