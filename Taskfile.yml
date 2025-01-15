@@ -1,18 +1,6 @@
 version: '3'
 
 tasks:
-  install-nix:
-    desc: Install Nix package manager if not already installed
-    cmds:
-      - |
-        if ! command -v nix &> /dev/null; then
-          echo "Nix is not installed. Installing Nix..."
-          curl -L https://nixos.org/nix/install | sh
-          echo "Nix installed successfully. Please restart your terminal or run 'source ~/.nix-profile/etc/profile.d/nix.sh'"
-        else
-          echo "Nix is already installed."
-        fi
-
   start:
     desc: Start the application stack with Docker Compose
     cmds:
@@ -27,65 +15,10 @@ tasks:
     desc: Run unit tests
     dir: backend
     cmds:
-      - npm run test
+      - npm run test:unit
 
-  migration-generate:
-    desc: Generate a new migration
-    dir: backend
-    vars:
-      MIGRATION_NAME: '{{default "InitialMigration" .CLI_ARGS}}'
+  test:integration:
+    desc: Run integration tests against running application
     cmds:
-      - npm run migration:generate --name={{.MIGRATION_NAME}}
-
-  migration-run:
-    desc: Run pending migrations
-    dir: backend
-    cmds:
-      - npm run migration:run
-
-  migration-revert:
-    desc: Revert last migration
-    dir: backend
-    cmds:
-      - npm run migration:revert
-
-  uninstall-nix:
-    desc: Uninstall Nix package manager and clean up related files
-    cmds:
-      - |
-        echo "Uninstalling Nix..."
-        # Kill any nix-daemon processes
-        sudo pkill -f nix-daemon || true
-        # Remove the daemon plist
-        sudo rm -f /Library/LaunchDaemons/org.nixos.nix-daemon.plist
-        # Try to remount /nix as read-write
-        sudo mount -uw / || true
-        sudo mount -uw /nix || true
-        # Clean up any remaining Nix volumes
-        for vol in $(diskutil list | grep Nix | awk '{print $NF}'); do
-          sudo diskutil unmount force "$vol" || true
-          sudo diskutil apfs deleteVolume "$vol" || true
-        done
-        # Try different methods to remove /nix
-        if [ -e '/nix' ] || [ -h '/nix' ]; then
-          sudo chflags -R nouchg,noschg /nix || true
-          sudo chmod -R 777 /nix || true
-          sudo rm -rf /nix || sudo rmdir /nix || true
-        fi
-        # Clean up user profile
-        if [ -e "$HOME/.nix-profile" ] || [ -h "$HOME/.nix-profile" ]; then
-          rm -rf "$HOME/.nix-profile"
-          rm -rf "$HOME/.nix-defexpr"
-          rm -rf "$HOME/.nix-channels"
-        fi
-        # Remove backup files from previous installations
-        sudo rm -f /etc/zshrc.backup-before-nix
-        sudo rm -f /etc/bashrc.backup-before-nix
-        sudo rm -f /etc/bash.bashrc.backup-before-nix
-        # Remove nix lines from profile files
-        for file in ~/.bash_profile ~/.bash_login ~/.profile ~/.zshrc; do
-          if [ -f "$file" ]; then
-            sed -i.bak '/# added by Nix installer/,+1d' "$file"
-          fi
-        done
-        echo "Nix has been uninstalled. Please restart your terminal for changes to take effect."
+      - chmod +x backend/scripts/integration-tests.sh
+      - backend/scripts/integration-tests.sh

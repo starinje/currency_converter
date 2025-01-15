@@ -77,7 +77,9 @@ Success Response:
 }
 ```
 
-## Dependencies
+## Development
+
+### Prerequisites
 
 To run the project, you need to have the following dependencies installed:
 
@@ -85,60 +87,77 @@ To run the project, you need to have the following dependencies installed:
 - docker (https://docs.docker.com/get-started/get-docker/)
 - docker-compose (this is included in docker desktop above)
 
-### 1. Install Nix
+### Available Commands
 
-This project uses Nix to ensure that developers' local environments are all the same.
-
-To install Nix, run the following command at the root level of the project directory:
+The project uses [Task](https://taskfile.dev) for managing development commands. Here are all available commands:
 
 ```bash
+# Install Nix package manager (optional)
 task install-nix
-```
 
-To uninstall Nix if needed:
+# Start the application stack with Docker Compose
+task start
 
-```bash
+# Stop the Docker Compose stack and remove volumes
+task stop
+
+# Run unit tests
+task test
+
+# Run integration tests, you will need to run this from a second terminal
+# with the application running
+task test:integration
+
+# Uninstall Nix package manager (if previously installed)
 task uninstall-nix
 ```
 
-### 2. Start Nix
+### Running Tests
 
-To enter the Nix shell and set up your development environment, run the following command in your terminal:
+#### Unit Tests
 
-```bash
-nix-shell
-```
-
-This command creates an isolated environment based on your `shell.nix` file, allowing you to access all specified tools and dependencies. You can exit the Nix shell by typing `exit` or pressing `Ctrl + D`. For more information about Nix, visit the [Nix website](https://nixos.org/nix/).
-
-### 4. Start the Application
-
-To start the application, run:
-
-```bash
-task start
-```
-
-This command will launch the application in the background.
-
-### 5. Stop the Application
-
-To stop the application, use:
-
-```bash
-task stop
-```
-
-This command will terminate the running application.
-
-### 6. Run Backend Tests
-
-To run the tests for the application, execute:
+Unit tests can be run with:
 
 ```bash
 task test
 ```
 
-This command will run all the defined tests to ensure everything is functioning correctly.
+#### Integration Tests
 
-Note: Ensure Docker containers are running when executing migration commands.
+To run integration tests:
+
+1. First start the application:
+
+```bash
+task start
+```
+
+2. In another terminal, run the integration tests:
+
+```bash
+task test:integration
+```
+
+### Nix Development Environment
+
+This project uses Nix to ensure that developers' local environments are all the same.
+
+To install Nix:
+
+```bash
+task install-nix
+```
+
+To enter the Nix shell:
+
+```bash
+nix-shell
+```
+
+To uninstall Nix:
+
+```bash
+task uninstall-nix
+```
+
+For more information about Nix, visit the [Nix website](https://nixos.org/nix/).
