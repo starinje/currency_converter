@@ -15,11 +15,17 @@ export const createConversionHandler = (
 ) => {
   return async (req: Request, res: Response) => {
     try {
-      const { from , to, amount } = req.query;
+      const { from, to, amount } = req.query;
       const userId = (req as AuthenticatedRequest).userId;
 
       if (!from || !to || !amount) {
         return res.status(400).json({ error: 'Missing required parameters' });
+      }
+
+      // Validate amount is a valid number
+      const parsedAmount = parseFloat(amount as string);
+      if (isNaN(parsedAmount)) {
+        return res.status(400).json({ error: 'Invalid amount' });
       }
 
       // Validate currencies
@@ -33,14 +39,14 @@ export const createConversionHandler = (
       }
 
       const rate = await coinbaseService.getExchangeRate(from as string, to as string);
-      const result = parseFloat(amount as string) * rate;
+      const result = parsedAmount * rate;
 
       // Save conversion to database
       const conversion = new Conversion();
       conversion.userId = userId;
       conversion.fromCurrency = from as string;
       conversion.toCurrency = to as string;
-      conversion.amount = parseFloat(amount as string);
+      conversion.amount = parsedAmount;
       conversion.result = result;
       conversion.responseBody = { rate, result };
 
@@ -49,7 +55,7 @@ export const createConversionHandler = (
       return res.json({
         from,
         to,
-        amount: parseFloat(amount as string),
+        amount: parsedAmount,
         rate,
         result
       });

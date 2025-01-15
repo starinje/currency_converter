@@ -21,6 +21,22 @@ export const rateLimitMiddleware = async (
         resetAt: new Date(new Date().setHours(24, 0, 0, 0))
       });
     }
+
+    // Get initial remaining count
+    const remaining = await rateLimitService.getRemainingRequests(userId);
+    
+    // Store original json method
+    const originalJson = res.json;
+    
+    // Override json method to include rate limit info
+    res.json = function(body) {
+      if (body && typeof body === 'object') {
+        body.remaining = Math.max(0, remaining - 1); // Subtract 1 for the current request
+        body.resetAt = new Date(new Date().setHours(24, 0, 0, 0));
+      }
+      return originalJson.call(this, body);
+    };
+
     next();
   } catch (error) {
     console.error('Rate limit error:', error);

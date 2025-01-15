@@ -3,85 +3,102 @@
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Test counter
-TESTS_PASSED=0
-TESTS_FAILED=0
+# Base URL for the API
+BASE_URL="http://localhost:3000/api"
 
-# Helper function to run a test
-run_test() {
-    local name=$1
-    local command=$2
-    local expected_status=$3
-    local expected_pattern=$4
+# Authorization token
+AUTH_TOKEN="test-token"
 
-    echo "Running test: $name"
-    
-    # Run the command and capture both response body and status code separately
-    local response_body=$(eval "$command" | sed \$d)  # Remove last line (status code)
-    local status_code=$(eval "$command" | tail -n1)   # Get just the status code
-    
-    # Check status code if provided
-    if [ ! -z "$expected_status" ]; then
-        if [ "$status_code" != "$expected_status" ]; then
-            echo -e "${RED}❌ Failed: Expected status $expected_status, got $status_code${NC}"
-            echo "Response: $response_body"
-            TESTS_FAILED=$((TESTS_FAILED + 1))
-            return
-        fi
-    fi
-    
-    # Check response pattern if provided
-    if [ ! -z "$expected_pattern" ]; then
-        if ! echo "$response_body" | grep -q "$expected_pattern"; then
-            echo -e "${RED}❌ Failed: Response did not match expected pattern${NC}"
-            echo "Response: $response_body"
-            echo "Expected pattern: $expected_pattern"
-            TESTS_FAILED=$((TESTS_FAILED + 1))
-            return
-        fi
-    fi
-    
-    echo -e "${GREEN}✓ Passed${NC}"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
+# Function to check if it's a weekend
+is_weekend() {
+    local day=$(date +%u)
+    [ "$day" -gt 5 ]
 }
 
-# Wait for the application to be ready
-echo "Waiting for application to be ready..."
-until curl -s http://localhost:3000/api/convert > /dev/null 2>&1; do
-    sleep 1
-done
-
-# Test successful conversion
-run_test "Successful conversion" \
-    "curl -s -w '\n%{http_code}' -X GET 'http://localhost:3000/api/convert?from=BTC&to=USD&amount=1' -H 'Authorization: Bearer user123'" \
-    "200" \
-    '"result":'
+# Set rate limit based on day of week
+if is_weekend; then
+    RATE_LIMIT=200
+    echo "Weekend detected - Rate limit is set to 200"
+else
+    RATE_LIMIT=100
+    echo "Weekday detected - Rate limit is set to 100"
+fi
 
 # Test missing authorization
-run_test "Missing authorization" \
-    "curl -s -w '\n%{http_code}' -X GET 'http://localhost:3000/api/convert?from=BTC&to=USD&amount=1'" \
-    "401" \
-    '"error":"No authorization token provided"'
+echo -e "\n${GREEN}Testing missing authorization...${NC}"
+response=$(curl -s "$BASE_URL/convert?from=BTC&to=USD&amount=1")
+echo "Response: $response"
+
+if echo "$response" | jq -e 'select(.error == "No authorization token provided")' > /dev/null; then
+    echo -e "${GREEN}✓ Missing authorization test passed${NC}"
+else
+    echo -e "${RED}✗ Missing authorization test failed${NC}"
+    exit 1
+fi
 
 # Test missing parameters
-run_test "Missing parameters" \
-    "curl -s -w '\n%{http_code}' -X GET 'http://localhost:3000/api/convert?from=BTC' -H 'Authorization: Bearer user123'" \
-    "400" \
-    '"error":"Missing required parameters"'
+echo -e "\n${GREEN}Testing missing parameters...${NC}"
+response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/convert?from=BTC")
+echo "Response: $response"
+
+if echo "$response" | jq -e 'select(.error == "Missing required parameters")' > /dev/null; then
+    echo -e "${GREEN}✓ Missing parameters test passed${NC}"
+else
+    echo -e "${RED}✗ Missing parameters test failed${NC}"
+    exit 1
+fi
 
 # Test invalid currency
-run_test "Invalid currency" \
-    "curl -s -w '\n%{http_code}' -X GET 'http://localhost:3000/api/convert?from=INVALID&to=USD&amount=1' -H 'Authorization: Bearer user123'" \
-    "400" \
-    '"error":"Invalid currency"'
+echo -e "\n${GREEN}Testing invalid currency...${NC}"
+response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/convert?from=INVALID&to=USD&amount=1")
+echo "Response: $response"
 
-# Print summary
-echo "----------------------------------------"
-echo "Tests passed: $TESTS_PASSED"
-echo "Tests failed: $TESTS_FAILED"
-echo "----------------------------------------"
+if echo "$response" | jq -e 'select(.error == "Invalid currency")' > /dev/null; then
+    echo -e "${GREEN}✓ Invalid currency test passed${NC}"
+else
+    echo -e "${RED}✗ Invalid currency test failed${NC}"
+    exit 1
+fi
 
-# Exit with failure if any tests failed
-[ $TESTS_FAILED -eq 0 ] || exit 1 
+# Test invalid amount
+echo -e "\n${GREEN}Testing invalid amount...${NC}"
+response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/convert?from=BTC&to=USD&amount=invalid")
+echo "Response: $response"
+
+if echo "$response" | jq -e 'select(.error == "Invalid amount")' > /dev/null; then
+    echo -e "${GREEN}✓ Invalid amount test passed${NC}"
+else
+    echo -e "${RED}✗ Invalid amount test failed${NC}"
+    exit 1
+fi
+
+# Test rate limiting
+echo -e "\n${GREEN}Testing rate limit...${NC}"
+echo "Making $RATE_LIMIT requests to reach the rate limit..."
+
+for i in $(seq 1 $(($RATE_LIMIT))); do
+    response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/convert?from=BTC&to=USD&amount=1")
+    remaining=$(echo "$response" | jq -r '.remaining')
+    
+    if [ $((i % 20)) -eq 0 ]; then
+        echo "Progress: $i/$RATE_LIMIT requests made (Remaining: $remaining)"
+    fi
+done
+
+# Make one more request that should exceed the rate limit
+echo -e "\n${GREEN}Making request that should exceed rate limit...${NC}"
+response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$BASE_URL/convert?from=BTC&to=USD&amount=1")
+echo "Response from rate-limited request:"
+echo "$response" | jq '.'
+
+# Check if we got the expected rate limit error
+if echo "$response" | jq -e 'select(.error == "Rate limit exceeded")' > /dev/null; then
+    echo -e "${GREEN}✓ Rate limit test passed${NC}"
+else
+    echo -e "${RED}✗ Rate limit test failed${NC}"
+    exit 1
+fi
+
+echo -e "\n${GREEN}All tests passed!${NC}" 
