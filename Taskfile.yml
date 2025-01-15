@@ -21,10 +21,10 @@ tasks:
   stop:
     desc: Stop the Docker Compose stack
     cmds:
-      - docker-compose down
+      - docker-compose down -v
 
-  test-backend:
-    desc: Run backend tests
+  test:
+    desc: Run unit tests
     dir: backend
     cmds:
       - npm run test
@@ -48,3 +48,44 @@ tasks:
     dir: backend
     cmds:
       - npm run migration:revert
+
+  uninstall-nix:
+    desc: Uninstall Nix package manager and clean up related files
+    cmds:
+      - |
+        echo "Uninstalling Nix..."
+        # Kill any nix-daemon processes
+        sudo pkill -f nix-daemon || true
+        # Remove the daemon plist
+        sudo rm -f /Library/LaunchDaemons/org.nixos.nix-daemon.plist
+        # Try to remount /nix as read-write
+        sudo mount -uw / || true
+        sudo mount -uw /nix || true
+        # Clean up any remaining Nix volumes
+        for vol in $(diskutil list | grep Nix | awk '{print $NF}'); do
+          sudo diskutil unmount force "$vol" || true
+          sudo diskutil apfs deleteVolume "$vol" || true
+        done
+        # Try different methods to remove /nix
+        if [ -e '/nix' ] || [ -h '/nix' ]; then
+          sudo chflags -R nouchg,noschg /nix || true
+          sudo chmod -R 777 /nix || true
+          sudo rm -rf /nix || sudo rmdir /nix || true
+        fi
+        # Clean up user profile
+        if [ -e "$HOME/.nix-profile" ] || [ -h "$HOME/.nix-profile" ]; then
+          rm -rf "$HOME/.nix-profile"
+          rm -rf "$HOME/.nix-defexpr"
+          rm -rf "$HOME/.nix-channels"
+        fi
+        # Remove backup files from previous installations
+        sudo rm -f /etc/zshrc.backup-before-nix
+        sudo rm -f /etc/bashrc.backup-before-nix
+        sudo rm -f /etc/bash.bashrc.backup-before-nix
+        # Remove nix lines from profile files
+        for file in ~/.bash_profile ~/.bash_login ~/.profile ~/.zshrc; do
+          if [ -f "$file" ]; then
+            sed -i.bak '/# added by Nix installer/,+1d' "$file"
+          fi
+        done
+        echo "Nix has been uninstalled. Please restart your terminal for changes to take effect."
