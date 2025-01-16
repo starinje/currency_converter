@@ -2,9 +2,9 @@ version: '3'
 
 tasks:
   start:
-    desc: Start the application stack with Docker Compose
+    desc: Start the application with Docker Compose in background
     cmds:
-      - docker-compose up --build
+      - docker-compose up --build -d
 
   stop:
     desc: Stop the Docker Compose stack
@@ -13,12 +13,12 @@ tasks:
 
   test:
     desc: Run unit tests
-    dir: backend
+    dir: api
     cmds:
       - npm run test:unit
 
   test:integration:
     desc: Run integration tests against running application
     cmds:
-      - chmod +x backend/scripts/integration-tests.sh
-      - backend/scripts/integration-tests.sh
+      - chmod +x api/scripts/integration-tests.sh
+      - api/scripts/integration-tests.sh

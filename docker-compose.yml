@@ -1,17 +1,26 @@
-version: '3'
-
 services:
-  backend:
-    build: ./backend
+  api:
+    build: ./api
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=currency_converter
+      - NODE_ENV=development
     volumes:
-      - ./backend:/app
+      - ./api/src:/app/src
+      - ./api/package.json:/app/package.json
+      - ./api/package-lock.json:/app/package-lock.json
+      - ./api/tsconfig.json:/app/tsconfig.json
+      - ./api/scripts:/app/scripts
       - /app/node_modules
+      - /app/dist
 
   db:
     image: postgres:15-alpine
@@ -23,7 +32,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/db/init:/docker-entrypoint-initdb.d
+      - ./api/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

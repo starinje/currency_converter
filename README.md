@@ -1,9 +1,3 @@
-<div align="center">
-
-![A bear](images/yona.png)
-
-</div>
-
 ## Currency Converter API
 
 A REST API for currency conversion powered by the Coinbase API. Features include rate limiting and request tracking.
@@ -86,31 +80,28 @@ To run the project, you need to have the following dependencies installed:
 - task (https://taskfile.dev/installation/)
 - docker (https://docs.docker.com/get-started/get-docker/)
 - docker-compose (this is included in docker desktop above)
+- node (https://nodejs.org/en/download/)
+- npm (https://www.npmjs.com/get-npm)
 
-### Available Commands
+### Running the application
 
-The project uses [Task](https://taskfile.dev) for managing development commands. Here are all available commands:
+This application uses a Docker Compose stack to run the application and database.
+
+The application can be started with the following command:
 
 ```bash
-# Install Nix package manager (optional)
-task install-nix
-
-# Start the application stack with Docker Compose
 task start
-
-# Stop the Docker Compose stack and remove volumes
-task stop
-
-# Run unit tests
-task test
-
-# Run integration tests, you will need to run this from a second terminal
-# with the application running
-task test:integration
-
-# Uninstall Nix package manager (if previously installed)
-task uninstall-nix
 ```
+
+_Once started, the application is available at [localhost:3000](http://localhost:3000)_
+
+The application can be stopped with the following command:
+
+```bash
+task stop
+```
+
+_This will stop the application and the database and will also remove the database volumes_
 
 ### Running Tests
 
@@ -132,32 +123,31 @@ To run integration tests:
 task start
 ```
 
-2. In another terminal, run the integration tests:
+2. In a second terminal, run the integration tests:
 
 ```bash
 task test:integration
 ```
 
-### Nix Development Environment
+## Areas for Improvement
 
-This project uses Nix to ensure that developers' local environments are all the same.
+### 1. Timezone Handling
 
-To install Nix:
+- Currently, the application uses the server's timezone
+- This is not ideal as the server could be in a different timezone than the user
+- Future improvement would involve proper timezone handling based on user location or preference
 
-```bash
-task install-nix
-```
+### 2. Request Authentication
 
-To enter the Nix shell:
+- Currently uses a static token in the header to identify users
+- A more robust authentication system (e.g., JWT, OAuth) should be implemented for production use
 
-```bash
-nix-shell
-```
+### 3. API Documentation
 
-To uninstall Nix:
+- Need to implement automatic API documentation (Swagger, OpenAPI, etc...)
 
-```bash
-task uninstall-nix
-```
+### 4. Exchange Rate Caching
 
-For more information about Nix, visit the [Nix website](https://nixos.org/nix/).
+- Currently fetches exchange rates from Coinbase API for each request
+- For high-traffic scenarios, implementing a caching system would be beneficial
+- Could cache exchange rates for different currency pairs and refresh at regular intervals
