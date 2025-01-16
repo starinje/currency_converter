@@ -40,7 +40,7 @@ Success Response:
 
 - 100 requests per day (weekdays)
 - 200 requests per day (weekends)
-- Resets at midnight UTC
+- Resets at midnight
 
 ### Supported Currencies
 
