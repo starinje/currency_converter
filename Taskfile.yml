@@ -17,6 +17,12 @@ tasks:
     cmds:
       - npm run test:unit
 
+  test:coverage:
+    desc: Run tests with coverage report
+    dir: api
+    cmds:
+      - npm run test:coverage
+
   test:integration:
     desc: Run integration tests against running application
     cmds:
